@@ -1,0 +1,164 @@
+﻿@page "/AddCreditCard"
+@using PresentationLayer.Data
+@using Models
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ICreditCardService CreditCardService
+@inject NavigationManager NavigationManager
+
+
+<AuthorizeView>
+    <div class="d-flex flex-column justify-content-around align-items-center">
+        <h3>Add Credit Card</h3><br>
+
+        <label>First Name:</label><br>
+        <input @bind-value="fname" @bind-value:event="oninput"/>
+        <br>
+        <label style="color:red">@fnamelabel</label>
+        <br>
+        <label>Last Name:</label><br>
+        <input @bind="lname">
+        <br>
+        <label style="color:red">@lnamelabel</label>
+        <br>
+        <label>Credit Card Number:</label><br>
+        <input @bind="creditcardnumber">
+        <br>
+        <label style="color:red">@creditcardnumberlabel</label>
+        <br>
+        <label>Expiration Date:</label><br>
+        <select @bind="expirationmonth">
+            @{
+                for (int i = 1; i < 13; i++)
+                {
+                    string b = "";
+                    if (i == 1)
+                    {
+                        b = "0" + i.ToString();
+                        <option selected value="@b">@b</option>
+                    }
+                    else if (i < 10)
+                    {
+                        b = "0" + i.ToString();
+                        <option value="@b">@b</option>
+                    }
+            
+                    else 
+                    {
+                        b = i.ToString();
+                        <option value="@i">@i</option>
+                    }
+                }
+            }
+        </select>
+        <label> / </label>
+        <select @bind="expirationyear">
+            @{
+                string a = "";
+                for (int i = 21; i < 27; i++)
+                {
+                    if (i == 1)
+                    {
+                        a = i.ToString();
+                        <option selected value="@i">@i</option>
+                    }
+                    else
+                    {
+                        a = i.ToString();
+                        <option value="@i">@i</option>
+                    }
+           
+                }
+            }
+        </select>
+        <br>
+        <br>
+        <label>Security Code:</label><br>
+        <input @bind="securitycode">
+        <br>
+        <label style="color:red">@securitycodelabel</label>
+        <br>
+        <button @onclick="addCreditCardToAccount">Save</button>
+        <label style="color:green">@cardLabel</label><label style="color:red">@exception</label>
+    </div>
+</AuthorizeView>
+
+
+
+@code {
+    private string fname;
+    private string lname;
+    private string creditcardnumber;
+    private string expirationmonth;
+    private string expirationyear;
+    private int securitycode;
+
+    private string fnamelabel = "";
+    private string lnamelabel = "";
+    private string creditcardnumberlabel = "";
+    private string securitycodelabel = "";
+    
+    private string cardLabel = "";
+    private string exception = "";
+    
+
+    private async Task addCreditCardToAccount()
+    {
+        cardLabel = "";
+        if (fname == "" || fname is null)
+        {
+            fnamelabel = "Field cannot be empty!";
+        }
+        if (lname == "" || lname is null)
+        {
+            lnamelabel = "Field cannot be empty!";
+        }
+        if (creditcardnumber is null || creditcardnumber.Length < 16)
+        {
+            creditcardnumberlabel = "Field cannot be shorter than 16 numbers!";
+        }
+        else if (creditcardnumber.Any(x => char.IsLetter(x)))
+        {
+            creditcardnumberlabel = "Field can only contain numbers!";
+        }
+        if (securitycode < 100 || securitycode > 999)
+        {
+            securitycodelabel = "Field can only contain 3 digits!";
+        }
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        Account account = new Account();
+        account.AccountId = Int32.Parse(user.Identity.Name);
+        CreditCard creditCard = new CreditCard(creditcardnumber, fname, lname, expirationmonth, expirationyear, securitycode, 900000, account);
+
+        try
+        {
+            cardLabel = await CreditCardService.AddCreditCardToAccount(creditCard);
+
+        }
+        catch (Exception e)
+        {
+            exception = e.Message;
+        }
+       
+        if (cardLabel.Equals("Card Added Successfully!"))
+        {
+            fname = "";
+            lname = "";
+            creditcardnumber = "";
+            securitycode = 0;
+            fnamelabel = "";
+            lnamelabel = "";
+            creditcardnumberlabel = "";
+            securitycodelabel = "";
+            exception = "";
+            fname = null;
+            lname = null;
+            creditcardnumber = null;
+            securitycode = 0;
+            expirationmonth = null;
+            expirationyear = null;
+        }
+
+    }
+
+}

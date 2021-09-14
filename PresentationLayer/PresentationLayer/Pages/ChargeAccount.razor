@@ -1,0 +1,93 @@
+﻿@page "/ChargeAccount"
+@using PresentationLayer.Data
+@using PresentationLayer.Models
+@using PresentationLayer.Authentication
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@inject ICreditCardService CreditCardService;
+
+<div class="d-flex flex-column justify-content-around align-items-center">
+    <h3>Charge your Account</h3>
+    
+    <label>Input amount to deposit:</label><br>
+    <input @bind="amount"/>
+  <br>    <br>    <br>  
+    <button class="btn btn-outline-dark" @onclick="CheckCreditCard">Deposit</button>
+    <label style="color:green">@displayMessage</label><label style="color:red">@displayErrorMessage</label>
+
+
+</div>
+
+@code {
+    private float amount;
+    private string displayMessage = "";
+    private string displayErrorMessage = "";
+    private int id;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authenticationState.User;
+        id = Int32.Parse(user.Identity.Name);
+    }
+
+    private async Task CheckCreditCard()
+    {
+        displayMessage = "";
+        displayErrorMessage = "";
+        if (amount > 0 && amount < 999999)
+        {
+            bool response;
+                    displayMessage = "Checking Credit Card...";
+                    response = await CreditCardService.CheckCreditCard(id);
+                    if (response.Equals(true))
+                    {
+                        displayMessage = "Charging account...";
+                        await PerformDeposit(amount);
+                    }
+                    else
+                    {
+                        displayMessage = "";
+                        displayErrorMessage = "Credit Card not assigned to the account";
+                    }
+        }
+        else
+        {
+            displayErrorMessage = "Enter a number between 0 and 999999";
+        }
+        
+    }
+
+    private async Task PerformDeposit(float amountParameter)
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+           id = Int32.Parse(user.Identity.Name);
+            Account accountToDeposit = new Account()
+            {
+                 AccountId = id,
+                Balance = amountParameter
+            };
+            bool response = await CreditCardService.DepositMoney(accountToDeposit);
+            if (response.Equals(true))
+            {
+                amount = 0;
+                displayMessage = "Account charged successfully";
+            }
+            else
+            {
+                displayMessage = "";
+                displayErrorMessage = "Insufficient funds";
+            }
+        }
+        catch (Exception e)
+        {
+            displayErrorMessage = e.Message;
+        }
+        
+    }
+    
+}

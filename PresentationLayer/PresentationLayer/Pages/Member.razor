@@ -1,0 +1,11 @@
+﻿@page "/Member"
+<h3>Member</h3>
+
+<AuthorizeView>
+    <p>Has account id @context.User.Identity.Name</p>
+    <p>Role is: @context.User.FindFirst(claim => claim.Type.Equals("Role")).Value</p>
+</AuthorizeView>
+
+@code {
+    
+}

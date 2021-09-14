@@ -1,0 +1,13 @@
+﻿@page "/Facility"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Facility</h3>
+
+<AuthorizeView>
+    <p>Has account id @context.User.Identity.Name</p>
+    <p>Role is: @context.User.FindFirst(claim => claim.Type.Equals("Role")).Value</p>
+</AuthorizeView>
+
+@code {
+    
+}

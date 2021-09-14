@@ -1,0 +1,114 @@
+﻿@page "/MakeTransaction"
+@using PresentationLayer.Models
+@using PresentationLayer.Data
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITransactionService TransactionService
+
+<AuthorizeView>
+
+    <h2>Make a transfer</h2>
+
+    <label style="color: red">@amountErrorLabel</label>
+    <label class="d-block">Amount to send:</label>
+    <input class="d-block" @bind-value="@amountToSend"/>
+
+    <label style="color: red">@receiverIdErrorLabel</label>
+    <label class="d-block">Receiver VIA ID:</label>
+    <input class="d-block" @bind-value="@receiverID"/>
+
+    <label class="d-block">Type of transaction:</label>
+    <select class="d-block" @bind="@type">
+        <option selected value="Transfer">Transfer</option>
+        <option value="Request">Request</option>
+    </select>
+
+    <label class="d-block">Comment(Optional):</label>
+    <input class="d-block" @bind-value="@comment"/>
+
+    <button class="d-block" @onclick="sendTransaction">Send</button>
+    <label style="color: @labelColor">@errorLabel</label>
+</AuthorizeView>
+
+@code {
+    private float amountToSend;
+    private string receiverID = "";
+    private string type = "Transfer";
+    private string comment = "";
+
+    private string labelColor;
+    private string errorLabel;
+    private string amountErrorLabel;
+    private string receiverIdErrorLabel;
+    private Transaction registeredTransaction;
+
+    private async Task sendTransaction()
+    {
+        errorLabel = "";
+        if (ValidateAmountField() && ValidateIdField())
+        {
+            var authenticationStateAsync = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            Transaction transaction = new Transaction()
+            {
+                Amount = amountToSend,
+                Comment = comment.Trim(),
+                ReceiverAccount = new Account()
+                {
+                    ViaEntity = new ViaEntity()
+                    {
+                        ViaId = Int32.Parse(receiverID)
+                    }
+                },
+                SenderAccount = new Account()
+                {
+                    AccountId = Int32.Parse(authenticationStateAsync.User.Identity.Name)
+                },
+                Type = type
+            };
+
+            try
+            {
+                registeredTransaction = await TransactionService.SendTransactionAsync(transaction);
+                labelColor = "green";
+                errorLabel = $"Successful transaction created at {registeredTransaction.Timestamp}";
+
+            }
+            catch (Exception e)
+            {
+                labelColor = "red";
+                errorLabel = e.Message;
+            }
+        }
+    }
+
+    private bool ValidateAmountField()
+    {
+        if (amountToSend == 0)
+        {
+            amountErrorLabel = "Enter valid amount";
+            return false;
+        }
+        else
+        {
+            amountErrorLabel = "";
+            return true;
+        }
+    }
+
+    private bool ValidateIdField()
+    {
+        Console.WriteLine(receiverID.Length);
+        if (receiverID.Length < 1 || receiverID.Length > 7)
+        {
+            receiverIdErrorLabel = "Enter valid id";
+            Console.WriteLine(receiverIdErrorLabel);
+            return false;
+        }
+        else
+        {
+            receiverIdErrorLabel = "";
+            Console.WriteLine(receiverIdErrorLabel);
+            return true;
+        }
+    }
+
+}

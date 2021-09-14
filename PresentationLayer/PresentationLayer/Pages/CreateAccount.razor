@@ -1,0 +1,219 @@
+﻿@page "/CreateAccount"
+@using PresentationLayer.Models
+@using PresentationLayer.Data
+
+@inject IAccountService AccountService
+@inject IRoleService RoleService
+@inject NavigationManager NavigationManager
+
+<div class="d-flex flex-column justify-content-around align-items-center">
+
+    <h3>Find your VIA account</h3>
+
+    <EditForm Model="viaEntityModel" OnValidSubmit="@CheckEntity">
+        <DataAnnotationsValidator/>
+        <ValidationSummary/>
+        <div class="form-group">
+            VIA ID:<br/>
+            <InputNumber @bind-Value="viaEntityModel.ViaId"/>
+        </div>
+        <div class="form-group">
+            VIA password:<br/>
+            <InputText type="password" @bind-Value="viaEntityModel.Password"/>
+        </div>
+        <p class="actions">
+            <button class="btn btn-outline-dark" type="submit">Find Account</button>
+        </p>
+        <label style="color: red">@checkEntityErrorLabel</label>
+    </EditForm>
+
+    @if (dbViaEntity != null)
+    {
+        @if (isMember)
+        {
+            <h2>Hello @dbMember.FirstName @dbMember.LastName</h2>
+        }
+        else
+        {
+            <h2>Hello @dbFacility.Name</h2>
+        }
+    }
+</div>
+@if (dbViaEntity != null)
+{
+    <div class="d-flex flex-column-reverse justify-content-around align-items-center ">
+        <EditForm Model="accountModel" OnValidSubmit="@SubmitAccountCreation">
+            <DataAnnotationsValidator/>
+            <ValidationSummary/>
+
+            <div class="form-group">
+                <label style="color:red">@accountTypeSelectionErrorLabel</label><br/>
+                Account type:<br/>
+                <InputSelect @bind-Value="selectedAccountType">
+                    <option value="">Select</option>
+                    @foreach (string type in accountTypes)
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <label style="color:red">@appPasswordErrorLabel</label>
+            <div class="form-group">
+                App password:<br/>
+                <InputText type="password" @bind-Value="accountModel.ApplicationPassword"/>
+            </div>
+
+            <div class="form-group">
+                Retype password:<br/>
+                <InputText type="password" @bind-Value="@appPasswordVerification"/>
+            </div>
+
+            <label style="color:red">@termsAndConditionsErrorLabel</label>
+            <div class="form-group">
+                <input type="checkbox" @bind-value="@termsAndConditionsChecked" @bind-value:event="oninput">
+                Terms and conditions
+            </div>
+
+            <p class="actions">
+                <button class="btn btn-outline-dark" type="submit">Create account</button>
+            </p>
+            <label style="color: @createAccountLabelColor">@createAccountErrorLabel</label>
+        </EditForm>
+    </div>
+}
+
+@code {
+    // models
+    private ViaEntity viaEntityModel = new ViaEntity();
+    private Account accountModel = new Account();
+    private string appPasswordVerification = "";
+    private bool termsAndConditionsChecked;
+    
+    // error labels
+    private string appPasswordErrorLabel = "";
+    private string termsAndConditionsErrorLabel = "";
+    private string accountTypeSelectionErrorLabel = "";
+    private string checkEntityErrorLabel = "";
+    private string createAccountErrorLabel = "";
+    private string createAccountLabelColor = "red";
+
+    // via entities from db
+    private ViaEntity dbViaEntity;
+
+    private bool isMember = false;
+    private Models.Member dbMember;
+    private Models.Facility dbFacility;
+
+
+    private List<string> accountTypes;
+    string selectedAccountType = "";
+
+    protected async override Task OnInitializedAsync()
+    {
+        accountTypes = await RoleService.GetAllAccountTypesAsync();
+    }
+
+
+    private async void CheckEntity()
+    {
+        checkEntityErrorLabel = "";
+        dbViaEntity = null;
+        try
+        {
+            dbViaEntity = await AccountService.CheckViaAccountAsync(viaEntityModel);
+        }
+        catch (Exception e)
+        {
+            checkEntityErrorLabel = e.Message;
+        }
+        
+        if (dbViaEntity is Models.Member)
+        {
+            isMember = true;
+            dbMember = (Models.Member) dbViaEntity;
+        }
+        else if (dbViaEntity is Models.Facility)
+        {
+            isMember = false;
+            dbFacility = (Models.Facility) dbViaEntity;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task SubmitAccountCreation()
+    {
+        createAccountErrorLabel = "";
+        if (CheckAccountTypeSelected() &&
+            CheckAppPasswordsMatch() &&
+            CheckTermsAndConditionsChecked())
+        {
+            ConstructCreatedAccount();
+            Console.WriteLine(accountModel);
+            try
+            {
+                await AccountService.CreateAccountAsync(accountModel);
+                createAccountErrorLabel = "Account created successfully";
+                createAccountLabelColor = "green";
+            }
+            catch (Exception e)
+            {
+                createAccountErrorLabel = e.Message;
+                createAccountLabelColor = "red";
+            }
+        }
+    }
+
+    private void ConstructCreatedAccount()
+    {
+        accountModel.AccountType = new Role()
+        {
+            RoleType = selectedAccountType
+        };
+        accountModel.ViaEntity = dbViaEntity;
+    }
+
+    private bool CheckAccountTypeSelected()
+    {
+        if (selectedAccountType.Equals(""))
+        {
+            accountTypeSelectionErrorLabel = "Select account type.";
+            return false;
+        }
+        else
+        {
+            accountTypeSelectionErrorLabel = "";
+            return true;
+        }
+    }
+
+    private bool CheckTermsAndConditionsChecked()
+    {
+        if (!termsAndConditionsChecked)
+        {
+            termsAndConditionsErrorLabel = "Approve Terms&Conditions!";
+            return false;
+        }
+        else
+        {
+            termsAndConditionsErrorLabel = "";
+            return true;
+        }
+    }
+
+    private bool CheckAppPasswordsMatch()
+    {
+        if (!appPasswordVerification.Equals(accountModel.ApplicationPassword))
+        {
+            appPasswordErrorLabel = "Passwords do not match!";
+            return false;
+        }
+        else
+        {
+            appPasswordErrorLabel = "";
+        }
+        return true;
+    }
+
+}
